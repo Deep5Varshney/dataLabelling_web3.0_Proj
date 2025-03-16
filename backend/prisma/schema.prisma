@@ -25,6 +25,7 @@ model Task {
    options    Option[]  // one to many relationships -> every task has multiple options but every options has a single task
    user_id     Int
    signature    String // payment
+   done        Boolean    @default(false)
    amount       String
    user         User    @relation(fields: [user_id], references: [id])
    submissons    Submission[]

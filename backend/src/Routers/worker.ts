@@ -2,11 +2,43 @@ import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "..";
 import {Router} from "express";
+import { workerauthMiddleware } from "../middleware";
 const router = Router();
 
 const prismaClient = new PrismaClient();
 export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
 
+router.get("/nextTask", workerauthMiddleware, async (req, res) => {
+    try {
+        // @ts-ignore
+        const userId = req.userId;
+
+        const task = await prismaClient.task.findFirst({
+            where: {
+                done: false,
+                submissons: {
+                    none: {
+                        worker_id: userId,
+                    },
+                },
+            },
+            select: {
+                title: true,
+                options: true,
+            },
+        });
+
+        if (!task) {
+            res.json({ message: "No more tasks left for you to review" });
+            return
+        }
+
+        res.json(task);
+    } catch (error) {
+        console.error("Error fetching next task:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 
 router.post("/signin", async(req, res)=>{

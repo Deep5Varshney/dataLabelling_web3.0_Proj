@@ -17,9 +17,39 @@ const client_1 = require("@prisma/client");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const __1 = require("..");
 const express_1 = require("express");
+const middleware_1 = require("../middleware");
 const router = (0, express_1.Router)();
 const prismaClient = new client_1.PrismaClient();
 exports.WORKER_JWT_SECRET = __1.JWT_SECRET + "worker";
+router.get("/nextTask", middleware_1.workerauthMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // @ts-ignore
+        const userId = req.userId;
+        const task = yield prismaClient.task.findFirst({
+            where: {
+                done: false,
+                submissons: {
+                    none: {
+                        worker_id: userId,
+                    },
+                },
+            },
+            select: {
+                title: true,
+                options: true,
+            },
+        });
+        if (!task) {
+            res.json({ message: "No more tasks left for you to review" });
+            return;
+        }
+        res.json(task);
+    }
+    catch (error) {
+        console.error("Error fetching next task:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}));
 router.post("/signin", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const hardCodedWalletAddress = "CtdHux3iiindZ12Mt4ShDNtD2AinQapWMWTbPRbnBDve";
     const existingUser = yield prismaClient.worker.findFirst({
