@@ -1,7 +1,9 @@
 import express from "express";
 import userRouter from "./Routers/user";
 import workerRouter from "./Routers/worker";
+import cors from "cors";
 const app = express();
+app.use(cors());
 app.use(express.json());
 export const JWT_SECRET = "dhquwey982137";
 
