@@ -30,7 +30,7 @@ const s3Client = new client_s3_1.S3Client({
     },
     region: "eu-north-1"
 });
-router.get("/task", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+router.get("/task", middleware_1.authMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // @ts-ignore
     const taskId = req.query.taskId;
     // @ts-ignore
@@ -45,7 +45,7 @@ router.get("/task", (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         }
     });
     if (!taskDetails) {
-        res.status(400).json({ message: "You don't have access to this task" });
+        res.json({ message: "You don't have access to this task." });
         return;
     }
     const responses = yield prismaClient.submission.findMany({
@@ -59,7 +59,7 @@ router.get("/task", (req, res) => __awaiter(void 0, void 0, void 0, function* ()
     const result = {};
     taskDetails.options.forEach(option => {
         result[option.id] = {
-            count: 0,
+            count: 1,
             option: {
                 imageUrl: option.image_url
             }
