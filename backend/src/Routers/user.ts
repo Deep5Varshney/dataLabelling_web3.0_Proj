@@ -1,0 +1,135 @@
+import { JWT_SECRET } from "..";
+import { PrismaClient } from "@prisma/client";
+import {response, Router} from "express";
+const router = Router();
+import jwt from "jsonwebtoken";
+import { authMiddleware } from "../middleware";
+import { Request, Response } from "express";
+
+const prismaClient = new PrismaClient();
+
+import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
+import { createtaskInput } from "../types";
+const DEFAULT_TITLE = "Select the most suitable option";
+
+const s3Client = new S3Client({
+    credentials:{
+        accessKeyId : "",
+        secretAccessKey :""
+    },
+    region : "eu-north-1"
+})
+
+interface AuthRequest extends Request {
+    userId?: string;
+  }
+
+
+
+  router.post("/task", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+    // @ts-ignore
+    const userId = req.userId;
+    const body = req.body;
+    const parseData = createtaskInput.safeParse(body);
+
+    if (!parseData.success) {
+        res.status(400).json({ message: "You've sent the wrong inputs" });
+        return;
+    }
+
+    try {
+        const response = await prismaClient.$transaction(async (tx): Promise<{ id: string }> => {
+            const task = await tx.task.create({
+                data: {
+                    title: parseData.data.title ?? DEFAULT_TITLE,
+                    amount: "1",
+                    signature: parseData.data.signature,
+                    user_id: userId
+                }
+            });
+
+            await tx.option.createMany({
+                data: parseData.data.options.map(x => ({
+                    image_url: x.imageUrl,
+                    task_id: task.id
+                }))
+            });
+
+            return { id: task.id.toString() };
+        });
+
+        res.json({ id: response.id });
+    } catch (error) {
+        console.error("Error creating task:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+  
+  router.get("/presignedurl", authMiddleware, async (req: Request, res: Response): Promise<void> => {
+    const userId = (req as AuthRequest).userId; // Type assertion
+
+    if (!userId) {
+        res.status(403).json({ message: "Unauthorized" });
+        return; // Ensure function returns
+    }
+
+    try {
+        const { url, fields } = await createPresignedPost(s3Client, {
+            Bucket: 'decentralizedplatform',
+            Key: `decentralized/${userId}/${Math.random()}/image.jpg`,
+            Conditions: [
+              ['content-length-range', 0, 5 * 1024 * 1024] // 5 MB max
+            ],
+            Fields: {
+              'Content-Type': 'image/png'
+            },
+            Expires: 3600
+          })
+
+          console.log({url,fields})
+
+        //console.log(preSignedUrl);
+        res.json({ preSignedUrl : url, fields});
+    } catch (error) {
+        console.error("Error generating pre-signed URL:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
+// signin with wallet
+router.post("/signin", async(req, res)=>{
+    const hardCodedWalletAddress = "CtdHux3iiindZ12Mt4ShDNtD2AinQapWMWTbPRbnBDve";
+    const existingUser = await prismaClient.user.findFirst({
+        where :{
+            address : hardCodedWalletAddress
+        }
+    })
+
+    if(existingUser){
+        const token  = jwt.sign({
+            userId : existingUser.id
+        },JWT_SECRET ) 
+
+        res.json({
+            token
+        })
+    }else{
+        const user = await prismaClient.user.create({
+            data :{
+                address : hardCodedWalletAddress
+            }
+        }) 
+
+        const token  = jwt.sign({
+            userId : user.id
+        },JWT_SECRET )
+
+        res.json({
+            token
+        })
+    }
+});
+
+export default router;
