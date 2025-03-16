@@ -16,8 +16,8 @@ const DEFAULT_TITLE = "Select the most suitable option";
 
 const s3Client = new S3Client({
     credentials:{
-        accessKeyId : "",
-        secretAccessKey :""
+        accessKeyId : "AKIASFIXCPRCK3X2AKGG",
+        secretAccessKey :"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"
     },
     region : "eu-north-1"
 })
