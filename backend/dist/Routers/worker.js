@@ -25,6 +25,48 @@ const prismaClient = new client_1.PrismaClient();
 exports.WORKER_JWT_SECRET = __1.JWT_SECRET + "worker";
 const TOTAL_SUBMISSIONS = 100;
 exports.TOTAL_DECIMALS = 1000000;
+router.post("/payout", middleware_1.workerauthMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    // @ts-ignore
+    const userId = req.userId;
+    const worker = yield prismaClient.worker.findFirst({
+        where: { id: Number(userId) }
+    });
+    if (!worker) {
+        res.status(403).json({
+            message: "User not found"
+        });
+        return;
+    }
+    const address = worker.address;
+    const txnId = "0x3678239";
+    yield prismaClient.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+        yield tx.worker.update({
+            where: {
+                id: Number(userId)
+            },
+            data: {
+                pending_amount: {
+                    decrement: worker.pending_amount
+                },
+                locked_amount: {
+                    increment: worker.pending_amount
+                }
+            }
+        });
+        yield tx.payouts.create({
+            data: {
+                user_id: Number(userId),
+                amount: worker.pending_amount,
+                status: "Processing",
+                signature: txnId
+            }
+        });
+    }));
+    res.json({
+        message: "Processing payout",
+        amount: worker.pending_amount
+    });
+}));
 router.get("/balance", middleware_1.workerauthMiddleware, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     // @ts-ignore
     const userId = req.userId;

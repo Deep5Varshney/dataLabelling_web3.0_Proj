@@ -12,6 +12,54 @@ export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
 const TOTAL_SUBMISSIONS =100;
 export const TOTAL_DECIMALS = 1000_000;
 
+router.post("/payout", workerauthMiddleware, async (req, res) => {
+     // @ts-ignore
+     const userId: string = req.userId;
+     const worker = await prismaClient.worker.findFirst({
+         where: { id: Number(userId) }
+     })
+
+     if (!worker) {
+         res.status(403).json({
+            message: "User not found"
+        })
+        return
+    }
+
+    const address = worker.address;
+    const txnId = "0x3678239";
+    await prismaClient.$transaction(async tx => {
+        await tx.worker.update({
+            where: {
+                id: Number(userId)
+            },
+            data: {
+                pending_amount: {
+                    decrement: worker.pending_amount
+                },
+                locked_amount: {
+                    increment: worker.pending_amount
+                }
+            }
+        })
+
+        await tx.payouts.create({
+            data: {
+                user_id: Number(userId),
+                amount: worker.pending_amount,
+                status: "Processing",
+                signature: txnId
+            }
+        })
+    })
+
+    res.json({
+        message: "Processing payout",
+        amount: worker.pending_amount
+    })
+
+})
+
 router.get("/balance", workerauthMiddleware, async(req, res)=>{
     // @ts-ignore
     const userId : string = req.userId;
