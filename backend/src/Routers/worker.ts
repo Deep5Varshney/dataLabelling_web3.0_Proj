@@ -8,6 +8,11 @@ const router = Router();
 const prismaClient = new PrismaClient();
 export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
 
+
+router.post("submission", workerauthMiddleware, async (req, res)=>{
+    
+})
+
 router.get("/nextTask", workerauthMiddleware, async (req, res) => {
     try {
         // @ts-ignore
