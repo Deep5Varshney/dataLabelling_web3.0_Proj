@@ -3,35 +3,87 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET } from "..";
 import {Router} from "express";
 import { workerauthMiddleware } from "../middleware";
+import { getNextTask } from "../db";
+import { createSubmissionInput } from "../types";
 const router = Router();
 
 const prismaClient = new PrismaClient();
 export const WORKER_JWT_SECRET = JWT_SECRET + "worker";
+const TOTAL_SUBMISSIONS =100;
+export const TOTAL_DECIMALS = 1000_000;
 
+router.get("/balance", workerauthMiddleware, async(req, res)=>{
+    // @ts-ignore
+    const userId : string = req.userId;
+    const worker  = await prismaClient.worker.findFirst({
+        where:{
+            id: Number(userId)
+        }
+    })
 
-router.post("submission", workerauthMiddleware, async (req, res)=>{
-    
+    res.json({
+        pendingAmount: worker ?.pending_amount,
+        lockedAmount : worker ?.locked_amount
+    })
+})
+
+router.post("/submission", workerauthMiddleware, async (req, res)=>{
+    // @ts-ignore
+    const userId = req.userId;
+    const body = req.body;
+    const parsedBody = createSubmissionInput.safeParse(body);
+
+    if(parsedBody.success){
+        const task = await getNextTask(Number(userId));
+        if(!task || task?.id !== Number(parsedBody.data.taskId)){
+            res.json({
+                message :"Incorrect task id"
+            })
+            return
+        }
+
+        const amount  = (Number(task.amount)/TOTAL_SUBMISSIONS);
+
+        const submission = await prismaClient.$transaction(async tx =>{
+            const submission = await tx.submission.create({
+                data :{
+                    option_id: Number(parsedBody.data.selection),
+                    worker_id: userId,
+                    task_id: Number(parsedBody.data.taskId),
+                    amount 
+                }
+            })
+
+            await tx.worker.update({
+                where:{
+                    id: userId
+                },
+                data:{
+                    pending_amount:{
+                        increment: Number(amount)
+                    }
+                }
+            })
+
+            return submission
+        })
+        const nexttask = await getNextTask(Number(userId));
+        res.json({
+            nexttask,
+            amount
+        })
+
+    }else{
+
+    }
 })
 
 router.get("/nextTask", workerauthMiddleware, async (req, res) => {
     try {
         // @ts-ignore
-        const userId = req.userId;
+        const userId : string = req.userId;
 
-        const task = await prismaClient.task.findFirst({
-            where: {
-                done: false,
-                submissons: {
-                    none: {
-                        worker_id: userId,
-                    },
-                },
-            },
-            select: {
-                title: true,
-                options: true,
-            },
-        });
+        const task  = await getNextTask(Number(userId));
 
         if (!task) {
             res.json({ message: "No more tasks left for you to review" });
@@ -44,7 +96,6 @@ router.get("/nextTask", workerauthMiddleware, async (req, res) => {
         res.status(500).json({ error: "Internal server error" });
     }
 });
-
 
 router.post("/signin", async(req, res)=>{
     const hardCodedWalletAddress = "CtdHux3iiindZ12Mt4ShDNtD2AinQapWMWTbPRbnBDve";

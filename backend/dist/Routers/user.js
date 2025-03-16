@@ -22,6 +22,7 @@ const prismaClient = new client_1.PrismaClient();
 const client_s3_1 = require("@aws-sdk/client-s3");
 const s3_presigned_post_1 = require("@aws-sdk/s3-presigned-post");
 const types_1 = require("../types");
+const worker_1 = require("./worker");
 const DEFAULT_TITLE = "Select the most suitable option";
 const s3Client = new client_s3_1.S3Client({
     credentials: {
@@ -87,7 +88,7 @@ router.post("/task", middleware_1.authMiddleware, (req, res) => __awaiter(void 0
             const task = yield tx.task.create({
                 data: {
                     title: (_a = parseData.data.title) !== null && _a !== void 0 ? _a : DEFAULT_TITLE,
-                    amount: "1",
+                    amount: 1 * worker_1.TOTAL_DECIMALS,
                     signature: parseData.data.signature,
                     user_id: userId
                 }

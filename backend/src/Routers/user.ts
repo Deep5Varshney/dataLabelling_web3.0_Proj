@@ -12,6 +12,7 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post'
 import { createtaskInput } from "../types";
+import { TOTAL_DECIMALS } from "./worker";
 const DEFAULT_TITLE = "Select the most suitable option";
 
 const s3Client = new S3Client({
@@ -100,7 +101,7 @@ interface AuthRequest extends Request {
             const task = await tx.task.create({
                 data: {
                     title: parseData.data.title ?? DEFAULT_TITLE,
-                    amount: "1",
+                    amount: 1* TOTAL_DECIMALS,
                     signature: parseData.data.signature,
                     user_id: userId
                 }
