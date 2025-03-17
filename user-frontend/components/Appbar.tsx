@@ -13,33 +13,23 @@ export const Appbar = () => {
     const { publicKey, signMessage } = useWallet();
 
     async function signAndSend() {
-        if (!publicKey || !signMessage) {
-            console.log("Wallet not connected or signMessage not available.");
+        if (!publicKey) {
             return;
         }
+        const message = new TextEncoder().encode("Sign into mechanical turks");
+        const signature = await signMessage?.(message);
+        console.log(signature)
+        console.log(publicKey)
+        const response = await axios.post(`${BACKEND_URL}/v1/user/signin`, {
+            signature,
+            publicKey: publicKey?.toString()
+        });
 
-        try {
-            const message = new TextEncoder().encode("Sign into mechanical turks");
-            const signature = await signMessage(message);
-
-            console.log("Signature:", signature);
-            console.log("Public Key:", publicKey.toString());
-
-            const response = await axios.post(`${BACKEND_URL}/v1/user/signin`, {
-                signature,
-                publicKey: publicKey.toString(),
-            });
-
-            localStorage.setItem("token", response.data.token);
-        } catch (error) {
-            console.error("Error signing in:", error);
-        }
+        localStorage.setItem("token", response.data.token);
     }
 
     useEffect(() => {
-        if (publicKey) {
-            signAndSend();
-        }
+        signAndSend()
     }, [publicKey]);
 
     return (
