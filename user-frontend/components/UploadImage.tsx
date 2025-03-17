@@ -13,12 +13,13 @@ export function UploadImage({ onImageAdded, image }: {
         setUploading(true);
         try {
             const file = e.target.files[0];
-            const response = await axios.get(`${BACKEND_URL}/v1/user/presignedurl`, {
+            const response = await axios.get(`${BACKEND_URL}/v1/user/presignedUrl`, {
                 headers: {
                     "Authorization": localStorage.getItem("token")
                 }
             });
             const presignedUrl = response.data.preSignedUrl;
+            console.log("url",presignedUrl);
             const formData = new FormData();
             formData.set("bucket", response.data.fields["bucket"])
             formData.set("X-Amz-Algorithm", response.data.fields["X-Amz-Algorithm"]);

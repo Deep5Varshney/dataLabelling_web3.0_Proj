@@ -121,9 +121,6 @@ router.get("/presignedurl", middleware_1.authMiddleware, (req, res) => __awaiter
             Conditions: [
                 ['content-length-range', 0, 5 * 1024 * 1024] // 5 MB max
             ],
-            Fields: {
-                'Content-Type': 'image/png'
-            },
             Expires: 3600
         });
         console.log({ url, fields });

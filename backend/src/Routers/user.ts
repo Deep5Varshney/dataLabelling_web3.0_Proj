@@ -124,36 +124,25 @@ interface AuthRequest extends Request {
     }
 });
   
-  router.get("/presignedurl", authMiddleware, async (req: Request, res: Response): Promise<void> => {
-    const userId = (req as AuthRequest).userId; // Type assertion
+router.get("/presignedUrl", authMiddleware, async (req, res) => {
+    // @ts-ignore
+    const userId = req.userId;
 
-    if (!userId) {
-        res.status(403).json({ message: "Unauthorized" });
-        return; // Ensure function returns
-    }
+    const { url, fields } = await createPresignedPost(s3Client, {
+        Bucket: 'hkirat-cms',
+        Key: `fiver/${userId}/${Math.random()}/image.jpg`,
+        Conditions: [
+          ['content-length-range', 0, 5 * 1024 * 1024] // 5 MB max
+        ],
+        Expires: 3600
+    })
 
-    try {
-        const { url, fields } = await createPresignedPost(s3Client, {
-            Bucket: 'decentralizedplatform',
-            Key: `decentralized/${userId}/${Math.random()}/image.jpg`,
-            Conditions: [
-              ['content-length-range', 0, 5 * 1024 * 1024] // 5 MB max
-            ],
-            Fields: {
-              'Content-Type': 'image/png'
-            },
-            Expires: 3600
-          })
-
-          console.log({url,fields})
-
-        //console.log(preSignedUrl);
-        res.json({ preSignedUrl : url, fields});
-    } catch (error) {
-        console.error("Error generating pre-signed URL:", error);
-        res.status(500).json({ message: "Internal Server Error" });
-    }
-});
+    res.json({
+        preSignedUrl: url,
+        fields
+    })
+    
+})
 
 // signin with wallet
 router.post("/signin", async(req, res)=>{
